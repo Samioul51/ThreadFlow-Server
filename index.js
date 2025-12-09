@@ -29,6 +29,7 @@ async function run() {
     await client.connect();
     const db = client.db("ThreadFlow");
     const products = db.collection("products");
+    const orders = db.collection("orders");
 
     // All products
 
@@ -68,6 +69,36 @@ async function run() {
       }
     });
 
+
+    // Update Products quantity
+
+    app.patch("/products/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { newQuantity } = req.body;
+
+        const result = await products.updateOne(
+          {
+            _id: new ObjectId(id)
+          },
+          {
+            $set: { availableQuantity: newQuantity }
+          }
+        );
+
+        res.send({
+          success: true,
+          message: "Product stock updated successfully!",
+        })
+
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+    })
+
     // Stripe
 
     app.post("/create-payment-intent", async (req, res) => {
@@ -76,7 +107,7 @@ async function run() {
 
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount * 100,
-          currency: "bdt",
+          currency: "usd",
           automatic_payment_methods: { enabled: true }
         });
 
@@ -85,7 +116,19 @@ async function run() {
         });
 
       } catch (error) {
-        res.status(500).send({ error: error.message })
+        res.status(500).send({ success: false, message: error.message })
+      }
+    })
+
+    // Orders
+
+    app.post("/orders", async (req, res) => {
+      try {
+        const newOrder = req.body;
+        const result = await orders.insertOne(newOrder);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
       }
     })
 
