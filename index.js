@@ -32,13 +32,30 @@ async function run() {
     const orders = db.collection("orders");
     const users = db.collection("users");
 
+    await users.createIndex({ email: 1 }, { unique: true });
+
     // Storing User Info
 
     app.post("/users", async (req, res) => {
       try {
         const newUser = req.body;
+
+        const existingUser = await users.findOne({ email: newUser.email });
+
+        if (existingUser) {
+          return res.send({
+            success: true,
+            data: existingUser,
+          });
+        }
+
         const result = await users.insertOne(newUser);
-        res.send(result);
+        const createdUser = await users.findOne({ _id: result.insertedId });
+
+        res.send({
+          success: true,
+          data: newUser
+        });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
@@ -47,10 +64,45 @@ async function run() {
     // Getting user info
 
     app.get("/users/:email", async (req, res) => {
-      const email = req.params.email;
-      const user = await users.findOne({ email });
-      res.send(user);
+      try {
+        const email = req.params.email;
+        const user = await users.findOne({ email });
+
+        if (!user) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found"
+          });
+        }
+
+        res.send({
+          success: true,
+          data: user
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        });
+      }
     });
+
+    // All users
+
+    app.get("/users", async (req, res) => {
+      try {
+        const allUsers = await users.find().toArray();
+        res.send({
+          success: true,
+          data: allUsers
+        })
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        });
+      }
+    })
 
     // All products
 
