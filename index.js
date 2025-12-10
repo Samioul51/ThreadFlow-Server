@@ -44,6 +44,14 @@ async function run() {
       }
     });
 
+    // Getting user info
+
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await users.findOne({ email });
+      res.send(user);
+    });
+
     // All products
 
     app.get("/products", async (req, res) => {
