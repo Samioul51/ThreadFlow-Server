@@ -30,6 +30,19 @@ async function run() {
     const db = client.db("ThreadFlow");
     const products = db.collection("products");
     const orders = db.collection("orders");
+    const users = db.collection("users");
+
+    // Storing User Info
+
+    app.post("/users", async (req, res) => {
+      try {
+        const newUser = req.body;
+        const result = await users.insertOne(newUser);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
 
     // All products
 
