@@ -234,7 +234,28 @@ async function run() {
       }catch(error){
         res.status(500).send({success:false,message:error.message});
       }
-    })
+    });
+
+    // Single order
+
+    app.get("/orders/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const item = await orders.findOne({ _id: new ObjectId(id) });
+
+        res.send({
+          success: true,
+          data: item
+        });
+
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+    });
+
 
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
