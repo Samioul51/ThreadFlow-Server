@@ -122,6 +122,24 @@ async function run() {
 
     });
 
+    // All Orders
+
+    app.get("/orders", async (req, res) => {
+      try {
+        const list = await orders.find().sort({ date: -1 }).toArray();
+        res.send({
+          success: true,
+          data: list
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+
+    });
+
     // Single Product
 
     app.get("/products/:id", async (req, res) => {
@@ -202,6 +220,19 @@ async function run() {
         res.send(result);
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
+      }
+    })
+
+    // Delete orders
+
+    app.delete("/orders/:id",async(req,res)=>{
+      try{
+        const id=req.params.id;
+        const query={_id:new ObjectId(id)}
+        const result=await orders.deleteOne(query);
+        res.send(result);
+      }catch(error){
+        res.status(500).send({success:false,message:error.message});
       }
     })
 
