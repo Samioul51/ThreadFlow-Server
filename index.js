@@ -304,6 +304,45 @@ async function run() {
       }
     });
 
+    // Order Update
+
+    app.patch("/orders/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { deliveryStatus,orderConfirmed } = req.body;
+
+        const updatedFields = {};
+
+        if (deliveryStatus !== undefined)
+          updatedFields.deliveryStatus = deliveryStatus;
+        if (orderConfirmed !== undefined)
+          updatedFields.orderConfirmed = orderConfirmed;
+
+        const result = await orders.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedFields  }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "No order found or no changes made!"
+          })
+        }
+
+        res.send({
+          success: true,
+          message: "Order status updated successfully!",
+        })
+
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+    })
+
 
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
