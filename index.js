@@ -122,24 +122,19 @@ async function run() {
 
     });
 
-    // All Orders
+    // New Product add
 
-    app.get("/orders", async (req, res) => {
+    app.post("/products", async (req, res) => {
       try {
-        const list = await orders.find().sort({ date: -1 }).toArray();
-        res.send({
-          success: true,
-          data: list
-        });
+        const newProduct = req.body;
+        const result = await products.insertOne(newProduct);
+        res.send(result);
       } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message
-        })
+        res.status(500).send({ success: false, message: error.message });
       }
+    })
 
-    });
-
+    
     // Single Product
 
     app.get("/products/:id", async (req, res) => {
@@ -190,6 +185,25 @@ async function run() {
       }
     })
 
+
+    // All Orders
+
+    app.get("/orders", async (req, res) => {
+      try {
+        const list = await orders.find().sort({ date: -1 }).toArray();
+        res.send({
+          success: true,
+          data: list
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+
+    });
+
     // Stripe
 
     app.post("/create-payment-intent", async (req, res) => {
@@ -211,7 +225,7 @@ async function run() {
       }
     })
 
-    // Orders
+    // New Order add
 
     app.post("/orders", async (req, res) => {
       try {
