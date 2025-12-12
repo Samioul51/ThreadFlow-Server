@@ -134,7 +134,7 @@ async function run() {
       }
     })
 
-    
+
     // Single Product
 
     app.get("/products/:id", async (req, res) => {
@@ -156,25 +156,45 @@ async function run() {
     });
 
 
-    // Update Products quantity
+    // Update Product
 
     app.patch("/products/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const { newQuantity } = req.body;
+        const { price, newQuantity, minimumOrderQuantity, paymentOptions, productDescription } = req.body;
+
+        const updatedFields = {};
+
+        if (price !== undefined)
+          updatedFields.price = price;
+        if (newQuantity !== undefined)
+          updatedFields.availableQuantity = newQuantity;
+        if (minimumOrderQuantity !== undefined)
+          updatedFields.minimumOrderQuantity = minimumOrderQuantity;
+        if (paymentOptions !== undefined)
+          updatedFields.paymentOptions = paymentOptions;
+        if (productDescription !== undefined)
+          updatedFields.productDescription = productDescription;
 
         const result = await products.updateOne(
           {
             _id: new ObjectId(id)
           },
           {
-            $set: { availableQuantity: newQuantity }
+            $set: updatedFields
           }
         );
 
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "No product found or no changes made!"
+          })
+        }
+
         res.send({
           success: true,
-          message: "Product stock updated successfully!",
+          message: "Product updated successfully!",
         })
 
       } catch (error) {
@@ -185,6 +205,20 @@ async function run() {
       }
     })
 
+    // Delete Product
+
+    app.delete("/products/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) }
+        const result = await products.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // Update product
 
     // All Orders
 
@@ -239,14 +273,14 @@ async function run() {
 
     // Delete orders
 
-    app.delete("/orders/:id",async(req,res)=>{
-      try{
-        const id=req.params.id;
-        const query={_id:new ObjectId(id)}
-        const result=await orders.deleteOne(query);
+    app.delete("/orders/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) }
+        const result = await orders.deleteOne(query);
         res.send(result);
-      }catch(error){
-        res.status(500).send({success:false,message:error.message});
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
       }
     });
 
