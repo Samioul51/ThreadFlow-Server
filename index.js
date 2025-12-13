@@ -102,7 +102,64 @@ async function run() {
           message: error.message
         });
       }
-    })
+    });
+
+    // Update User
+
+    app.patch("/users/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { roleStatus, feedback } = req.body;
+
+        if (!roleStatus) {
+          return res.status(400).send({
+            success: false,
+            message: "roleStatus is required"
+          });
+        }
+
+        const updatedFields = { roleStatus };
+
+        if (roleStatus === "suspended") {
+          if (!feedback) {
+            return res.status(400).send({
+              success: false,
+              message: "Feedback is required"
+            });
+          }
+          updatedFields.feedback = feedback;
+        }
+        else
+          updatedFields.feedback = "";
+
+        const result = await users.updateOne(
+          {
+            _id: new ObjectId(id)
+          },
+          {
+            $set: updatedFields
+          }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "No user found or no changes made!"
+          })
+        }
+
+        res.send({
+          success: true,
+          message: "User updated successfully!",
+        })
+
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        })
+      }
+    });
 
     // All products
 
@@ -132,7 +189,7 @@ async function run() {
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
-    })
+    });
 
 
     // Single Product
@@ -203,7 +260,7 @@ async function run() {
           message: error.message
         })
       }
-    })
+    });
 
     // Delete Product
 
@@ -257,7 +314,7 @@ async function run() {
       } catch (error) {
         res.status(500).send({ success: false, message: error.message })
       }
-    })
+    });
 
     // New Order add
 
@@ -269,7 +326,7 @@ async function run() {
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
-    })
+    });
 
     // Delete orders
 
@@ -324,7 +381,7 @@ async function run() {
             date: new Date(),
             location
           },
-      ...(statusKey === "shipped" && { paymentStatus: "paid" })
+          ...(statusKey === "shipped" && { paymentStatus: "paid" })
         };
 
         const result = await orders.updateOne(
@@ -343,7 +400,7 @@ async function run() {
           message: error.message
         })
       }
-    })
+    });
 
 
     await client.db("admin").command({ ping: 1 });
