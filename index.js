@@ -224,7 +224,7 @@ async function run() {
 
     app.get("/orders", async (req, res) => {
       try {
-        const list = await orders.find().sort({ date: -1 }).toArray();
+        const list = await orders.find().sort({ createdAt: -1 }).toArray();
         res.send({
           success: true,
           data: list
@@ -309,26 +309,28 @@ async function run() {
     app.patch("/orders/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const { deliveryStatus,orderConfirmed } = req.body;
+        const { statusKey, location } = req.body;
 
-        const updatedFields = {};
+        if (!statusKey) {
+          return res.status(400).send({
+            success: false,
+            message: "Status key required"
+          })
+        }
 
-        if (deliveryStatus !== undefined)
-          updatedFields.deliveryStatus = deliveryStatus;
-        if (orderConfirmed !== undefined)
-          updatedFields.orderConfirmed = orderConfirmed;
+        const updateQuery = {
+          deliveryStatus: statusKey,
+          [`productionStatus.${statusKey}`]: {
+            date: new Date(),
+            location
+          },
+      ...(statusKey === "shipped" && { paymentStatus: "paid" })
+        };
 
         const result = await orders.updateOne(
           { _id: new ObjectId(id) },
-          { $set: updatedFields  }
+          { $set: updateQuery }
         );
-
-        if (result.modifiedCount === 0) {
-          return res.status(404).send({
-            success: false,
-            message: "No order found or no changes made!"
-          })
-        }
 
         res.send({
           success: true,
