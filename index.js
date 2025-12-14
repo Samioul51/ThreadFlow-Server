@@ -31,7 +31,7 @@ async function run() {
     const products = db.collection("products");
     const orders = db.collection("orders");
     const users = db.collection("users");
-    const contact=db.collection("contactForm");
+    const contact = db.collection("contactForm");
 
     await users.createIndex({ email: 1 }, { unique: true });
 
@@ -166,9 +166,14 @@ async function run() {
 
     app.get("/products", async (req, res) => {
       try {
-        const list = await products.find().sort({ date: -1 }).toArray();
+        const { limit = 0, skip = 0 } = req.query
+
+        const total=await products.countDocuments();
+
+        const list = await products.find().sort({ availableQuantity: -1 }).limit(Number(limit)).skip(Number(skip)).toArray();
         res.send({
           success: true,
+          total,
           data: list
         });
       } catch (error) {
@@ -214,18 +219,18 @@ async function run() {
 
     // Homepage limit 6 products
 
-    app.get("/products/home",async (req,res)=>{
-      try{
-        const homeProducts=await products.find({showOnHome:true}).sort({availableQuantity:-1}).limit(6).toArray();
+    app.get("/products/home", async (req, res) => {
+      try {
+        const homeProducts = await products.find({ showOnHome: true }).sort({ availableQuantity: -1 }).limit(6).toArray();
 
         res.send({
-          success:true,
-          data:homeProducts
+          success: true,
+          data: homeProducts
         });
-      }catch(error){
+      } catch (error) {
         res.status(500).send({
-          success:false,
-          message:error.message
+          success: false,
+          message: error.message
         });
       }
     });
