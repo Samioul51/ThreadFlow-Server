@@ -179,6 +179,56 @@ async function run() {
 
     });
 
+    // Homepage products selection
+
+    app.patch("/products/:id/toggle-home", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { showOnHome } = req.body;
+
+        const result = await products.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { showOnHome: showOnHome } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "No product found or no changes made!"
+          });
+        }
+
+        res.send({
+          success: true,
+          message: "Product toggling for homepage done successfully"
+        });
+
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message
+        });
+      }
+    });
+
+    // Homepage limit 6 products
+
+    app.get("/products/home",async (req,res)=>{
+      try{
+        const homeProducts=await products.find({showOnHome:true}).sort({availableQuantity:-1}).limit(6).toArray();
+
+        res.send({
+          success:true,
+          data:homeProducts
+        });
+      }catch(error){
+        res.status(500).send({
+          success:false,
+          message:error.message
+        });
+      }
+    });
+
     // New Product add
 
     app.post("/products", async (req, res) => {
@@ -212,13 +262,12 @@ async function run() {
       }
     });
 
-
     // Update Product
 
     app.patch("/products/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const { price, newQuantity, minimumOrderQuantity, paymentOptions, productDescription } = req.body;
+        const { productName, category, price, newQuantity, images, minimumOrderQuantity, paymentOptions, productDescription } = req.body;
 
         const updatedFields = {};
 
@@ -232,6 +281,12 @@ async function run() {
           updatedFields.paymentOptions = paymentOptions;
         if (productDescription !== undefined)
           updatedFields.productDescription = productDescription;
+        if (productName !== undefined)
+          updatedFields.productName = productName;
+        if (category !== undefined)
+          updatedFields.category = category;
+        if (images !== undefined)
+          updatedFields.images = images;
 
         const result = await products.updateOne(
           {
@@ -274,8 +329,6 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
-
-    // Update product
 
     // All Orders
 
