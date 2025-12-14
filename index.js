@@ -31,6 +31,7 @@ async function run() {
     const products = db.collection("products");
     const orders = db.collection("orders");
     const users = db.collection("users");
+    const contact=db.collection("contactForm");
 
     await users.createIndex({ email: 1 }, { unique: true });
 
@@ -452,6 +453,18 @@ async function run() {
           success: false,
           message: error.message
         })
+      }
+    });
+
+    // Contact Form
+
+    app.post("/contact", async (req, res) => {
+      try {
+        const newMessage = req.body;
+        const result = await contact.insertOne(newMessage);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
       }
     });
 
