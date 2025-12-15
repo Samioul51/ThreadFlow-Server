@@ -4,18 +4,66 @@ import cors from 'cors';
 import { MongoClient, ObjectId, ServerApiVersion } from 'mongodb';
 import Stripe from 'stripe';
 import rateLimit from 'express-rate-limit';
+import admin from 'firebase-admin';
+import fs from 'fs'
 
 dotenv.config();
 
-const app = express();
+// Firebase Admin
 
-app.set("trust proxy", 1);
+const serviceAccount=JSON.parse(
+  fs.readFileSync('./threadflow-fbAdmin.json','utf8')
+);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const app = express();
 
 const port = process.env.PORT || 3000;
 const stripe = new Stripe(process.env.stripe_secret_key);
 
+
+// Middlewares
+
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
+
+// FB token middleware
+
+const verifyFirebaseToken=async(req,res,next)=>{
+  const authorization=req.headers.authorization;
+  if(!authorization)
+    return res.status(401).send({message:"Unautorized access!"});
+
+  const token=authorization.split(" ")[1];
+
+  if(!token)
+    return res.status(401).send({message:"Unautorized access!"});
+
+  try{
+    req.user=await admin.auth().verifyIdToken(token);
+    next();
+  }catch(error){
+    return res.status(403).send({message:"Forbidden!"});
+  }
+};
+
+// Role verification middleware
+
+const verifyRole=(allowedRoles)=>async (req,res,next)=>{
+  const dbUser=await users.findOne({email:req.user.email});
+
+  if(!dbUser || !allowedRoles.includes(dbUser.role))
+    return res.status(403).send({message:"Forbidden"});
+
+  req.dbUser=dbUser;
+  next();
+};
+
+
 
 // Contact request limiter
 
