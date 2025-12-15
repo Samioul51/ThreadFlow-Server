@@ -232,11 +232,19 @@ async function run() {
 
     app.get("/products", async (req, res) => {
       try {
-        const { limit = 0, skip = 0 } = req.query
+        const { limit = 0, skip = 0, category, search } = req.query;
 
-        const total = await products.countDocuments();
+        const filter = {};
 
-        const list = await products.find().sort({ availableQuantity: -1 }).limit(Number(limit)).skip(Number(skip)).toArray();
+        if (category && category !== "All")
+          filter.category = category;
+
+        if (search)
+          filter.productName = { $regex: search, $options: "i" };
+
+        const total = await products.countDocuments(filter);
+
+        const list = await products.find(filter).sort({ availableQuantity: -1 }).limit(Number(limit)).skip(Number(skip)).toArray();
         res.send({
           success: true,
           total,
