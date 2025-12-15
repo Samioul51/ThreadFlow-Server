@@ -5,15 +5,13 @@ import { MongoClient, ObjectId, ServerApiVersion } from 'mongodb';
 import Stripe from 'stripe';
 import rateLimit from 'express-rate-limit';
 import admin from 'firebase-admin';
-import fs from 'fs'
 
 dotenv.config();
 
 // Firebase Admin
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync('./threadflow-fbAdmin.json', 'utf8')
-);
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -627,8 +625,8 @@ async function run() {
     });
 
 
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // await client.close();
   }
