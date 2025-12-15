@@ -11,8 +11,8 @@ dotenv.config();
 
 // Firebase Admin
 
-const serviceAccount=JSON.parse(
-  fs.readFileSync('./threadflow-fbAdmin.json','utf8')
+const serviceAccount = JSON.parse(
+  fs.readFileSync('./threadflow-fbAdmin.json', 'utf8')
 );
 
 admin.initializeApp({
@@ -33,49 +33,35 @@ app.use(express.json());
 
 // FB token middleware
 
-const verifyFirebaseToken=async(req,res,next)=>{
-  const authorization=req.headers.authorization;
-  if(!authorization)
-    return res.status(401).send({message:"Unautorized access!"});
+const verifyFirebaseToken = async (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization)
+    return res.status(401).send({ message: "Unautorized access!" });
 
-  const token=authorization.split(" ")[1];
+  const token = authorization.split(" ")[1];
 
-  if(!token)
-    return res.status(401).send({message:"Unautorized access!"});
+  if (!token)
+    return res.status(401).send({ message: "Unautorized access!" });
 
-  try{
-    req.user=await admin.auth().verifyIdToken(token);
+  try {
+    req.user = await admin.auth().verifyIdToken(token);
     next();
-  }catch(error){
-    return res.status(403).send({message:"Forbidden!"});
+  } catch (error) {
+    return res.status(403).send({ message: "Forbidden!" });
   }
 };
 
-// Role verification middleware
-
-const verifyRole=(allowedRoles)=>async (req,res,next)=>{
-  const dbUser=await users.findOne({email:req.user.email});
-
-  if(!dbUser || !allowedRoles.includes(dbUser.role))
-    return res.status(403).send({message:"Forbidden"});
-
-  req.dbUser=dbUser;
-  next();
-};
-
-
-
 // Contact request limiter
 
-const contactLimiter=rateLimit({
-  windowMs:10*60*1000,
-  max:1,
-  message:{
-    success:false,
-    message:"Too many messages sent. Please try again later."
+const contactLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 1,
+  message: {
+    success: false,
+    message: "Too many messages sent. Please try again later."
   },
   standardHeaders: true,
-  legacyHeaders:false,
+  legacyHeaders: false,
 });
 
 const uri = `mongodb+srv://${process.env.user_name}:${process.env.password}@cluster0.tugpfto.mongodb.net/?appName=Cluster0`;
@@ -99,6 +85,18 @@ async function run() {
     const contact = db.collection("contactForm");
 
     await users.createIndex({ email: 1 }, { unique: true });
+
+    // Role verification middleware
+
+    const verifyRole = (allowedRoles) => async (req, res, next) => {
+      const dbUser = await users.findOne({ email: req.user.email });
+
+      if (!dbUser || !allowedRoles.includes(dbUser.role))
+        return res.status(403).send({ message: "Forbidden" });
+
+      req.dbUser = dbUser;
+      next();
+    };
 
     // Storing User Info
 
@@ -129,10 +127,13 @@ async function run() {
 
     // Getting user info
 
-    app.get("/users/:email", async (req, res) => {
+    app.get("/users/:email", verifyFirebaseToken, verifyRole(["admin", "buyer", "manager"]), async (req, res) => {
       try {
         const email = req.params.email;
         const user = await users.findOne({ email });
+
+        if (user.email !== req.user.email)
+          return res.status(403).send({ message: "Forbidden" });
 
         if (!user) {
           return res.status(404).send({
@@ -155,7 +156,7 @@ async function run() {
 
     // All users
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyFirebaseToken, verifyRole(["admin"]), async (req, res) => {
       try {
         const allUsers = await users.find().toArray();
         res.send({
@@ -172,7 +173,7 @@ async function run() {
 
     // Update User
 
-    app.patch("/users/:id", async (req, res) => {
+    app.patch("/users/:id", verifyFirebaseToken, verifyRole(["admin"]), async (req, res) => {
       try {
         const id = req.params.id;
         const { roleStatus, feedback } = req.body;
@@ -233,7 +234,7 @@ async function run() {
       try {
         const { limit = 0, skip = 0 } = req.query
 
-        const total=await products.countDocuments();
+        const total = await products.countDocuments();
 
         const list = await products.find().sort({ availableQuantity: -1 }).limit(Number(limit)).skip(Number(skip)).toArray();
         res.send({
@@ -252,7 +253,7 @@ async function run() {
 
     // Homepage products selection
 
-    app.patch("/products/:id/toggle-home", async (req, res) => {
+    app.patch("/products/:id/toggle-home", verifyFirebaseToken, verifyRole(["admin"]), async (req, res) => {
       try {
         const id = req.params.id;
         const { showOnHome } = req.body;
@@ -302,9 +303,9 @@ async function run() {
 
     // New Product add
 
-    app.post("/products", async (req, res) => {
+    app.post("/products", verifyFirebaseToken, verifyRole(["manager"]), async (req, res) => {
       try {
-        const newProduct = req.body;
+        const newProduct = { ...req.body, email: req.user.email };
         const result = await products.insertOne(newProduct);
         res.send(result);
       } catch (error) {
@@ -335,9 +336,15 @@ async function run() {
 
     // Update Product
 
-    app.patch("/products/:id", async (req, res) => {
+    app.patch("/products/:id", verifyFirebaseToken, verifyRole(["admin", "manager"]), async (req, res) => {
       try {
         const id = req.params.id;
+
+        const product = await products.findOne({ _id: new ObjectId(id), email: req.user.email });
+
+        if (req.dbUser?.role === "manager" && !product)
+          return res.status(403).send({ message: "Forbidden" });
+
         const { productName, category, price, newQuantity, images, minimumOrderQuantity, paymentOptions, productDescription } = req.body;
 
         const updatedFields = {};
@@ -388,11 +395,41 @@ async function run() {
       }
     });
 
+    // Product availableQuantity update after buying
+
+    app.patch("/products/:id/stock", verifyFirebaseToken, async (req, res) => {
+      try {
+        const { quantitySold } = req.body;
+        const id = req.params.id;
+
+        if (!quantitySold || quantitySold<=0) 
+          return res.status(400).send({ success: false, message: "Missing newQuantity" });
+
+        const result = await products.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { availableQuantity: -quantitySold } }
+        );
+
+        if (result.modifiedCount === 0)
+          return res.status(404).send({ success: false, message: "Product not found or no changes made" });
+
+        res.send({ success: true, message: "Stock updated successfully" });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+
     // Delete Product
 
-    app.delete("/products/:id", async (req, res) => {
+    app.delete("/products/:id", verifyFirebaseToken, verifyRole(["admin", "manager"]), async (req, res) => {
       try {
         const id = req.params.id;
+        const product = await products.findOne({ _id: new ObjectId(id), email: req.user.email });
+
+        if (req.dbUser?.role === "manager" && !product)
+          return res.status(403).send({ message: "Forbidden" });
+
         const query = { _id: new ObjectId(id) }
         const result = await products.deleteOne(query);
         res.send(result);
@@ -403,9 +440,17 @@ async function run() {
 
     // All Orders
 
-    app.get("/orders", async (req, res) => {
+    app.get("/orders", verifyFirebaseToken, verifyRole(["admin", "manager", "buyer"]), async (req, res) => {
       try {
-        const list = await orders.find().sort({ createdAt: -1 }).toArray();
+        let query = {};
+
+        if (req.dbUser.role === "manager")
+          query.sellerEmail = req.user.email;
+
+        if (req.dbUser.role === "buyer")
+          query.email = req.user.email;
+
+        const list = await orders.find(query).sort({ createdAt: -1 }).toArray();
         res.send({
           success: true,
           data: list
@@ -421,7 +466,7 @@ async function run() {
 
     // Stripe
 
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyFirebaseToken, async (req, res) => {
       try {
         const { amount } = req.body;
 
@@ -442,9 +487,9 @@ async function run() {
 
     // New Order add
 
-    app.post("/orders", async (req, res) => {
+    app.post("/orders", verifyFirebaseToken, verifyRole(["buyer"]), async (req, res) => {
       try {
-        const newOrder = req.body;
+        const newOrder = { ...req.body, email: req.user.email };
         const result = await orders.insertOne(newOrder);
         res.send(result);
       } catch (error) {
@@ -454,9 +499,17 @@ async function run() {
 
     // Delete orders
 
-    app.delete("/orders/:id", async (req, res) => {
+    app.delete("/orders/:id", verifyFirebaseToken, verifyRole(["buyer"]), async (req, res) => {
       try {
         const id = req.params.id;
+
+        const order = await orders.findOne({ _id: new ObjectId(id) });
+
+        if (!order)
+          return res.status(404).send({ message: "Order not found" });
+        if (req.dbUser.role === "buyer" && order.email !== req.user.email)
+          return res.status(403).send({ message: "Forbidden" });
+
         const query = { _id: new ObjectId(id) }
         const result = await orders.deleteOne(query);
         res.send(result);
@@ -467,10 +520,16 @@ async function run() {
 
     // Single order
 
-    app.get("/orders/:id", async (req, res) => {
+    app.get("/orders/:id", verifyFirebaseToken, async (req, res) => {
       try {
         const id = req.params.id;
         const item = await orders.findOne({ _id: new ObjectId(id) });
+
+        if (req.dbUser?.role === "buyer" && item.email !== req.user.email)
+          return res.status(403).send({ message: "Forbidden" });
+
+        if (req.dbUser?.role === "manager" && item.sellerEmail !== req.user.email)
+          return res.status(403).send({ message: "Forbidden" });
 
         res.send({
           success: true,
@@ -487,7 +546,7 @@ async function run() {
 
     // Order Update
 
-    app.patch("/orders/:id", async (req, res) => {
+    app.patch("/orders/:id", verifyFirebaseToken, verifyRole(["admin", "manager"]), async (req, res) => {
       try {
         const id = req.params.id;
         const { statusKey, location } = req.body;
@@ -528,7 +587,7 @@ async function run() {
 
     // Contact Form
 
-    app.post("/contact",contactLimiter, async (req, res) => {
+    app.post("/contact", contactLimiter, async (req, res) => {
       try {
         const newMessage = req.body;
         const result = await contact.insertOne(newMessage);
@@ -555,3 +614,5 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`server running on ${port}`);
 })
+
+
