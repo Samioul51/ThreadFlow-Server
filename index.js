@@ -402,7 +402,7 @@ async function run() {
         const { quantitySold } = req.body;
         const id = req.params.id;
 
-        if (!quantitySold || quantitySold<=0) 
+        if (!quantitySold || quantitySold <= 0)
           return res.status(400).send({ success: false, message: "Missing newQuantity" });
 
         const result = await products.updateOne(
@@ -507,8 +507,17 @@ async function run() {
 
         if (!order)
           return res.status(404).send({ message: "Order not found" });
+
         if (req.dbUser.role === "buyer" && order.email !== req.user.email)
           return res.status(403).send({ message: "Forbidden" });
+
+        if (order.deliveryStatus !== "pending" || order.paymentStatus !== "pending")
+          return res.status(400).send({ message: "Order cannot be cancelled" });
+
+        await products.updateOne(
+          { _id: new ObjectId(order.productID) },
+          { $inc: { availableQuantity: Number(order.quantity) } }
+        );
 
         const query = { _id: new ObjectId(id) }
         const result = await orders.deleteOne(query);
@@ -557,6 +566,18 @@ async function run() {
             message: "Status key required"
           })
         }
+
+        const order = await orders.findOne({ _id: new ObjectId(id) });
+
+        if (!order)
+          return res.status(404).send({ message: "Order not found" });
+
+        if (statusKey === "rejected")
+          await products.updateOne(
+            { _id: new ObjectId(order.productID) },
+            { $inc: { availableQuantity: Number(order.quantity) } }
+          );
+
 
         const updateQuery = {
           deliveryStatus: statusKey,
