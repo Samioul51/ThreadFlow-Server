@@ -3,15 +3,32 @@ import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId, ServerApiVersion } from 'mongodb';
 import Stripe from 'stripe';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
 const app = express();
+
+app.set("trust proxy", 1);
+
 const port = process.env.PORT || 3000;
 const stripe = new Stripe(process.env.stripe_secret_key);
 
 app.use(cors());
 app.use(express.json());
+
+// Contact request limiter
+
+const contactLimiter=rateLimit({
+  windowMs:10*60*1000,
+  max:1,
+  message:{
+    success:false,
+    message:"Too many messages sent. Please try again later."
+  },
+  standardHeaders: true,
+  legacyHeaders:false,
+});
 
 const uri = `mongodb+srv://${process.env.user_name}:${process.env.password}@cluster0.tugpfto.mongodb.net/?appName=Cluster0`;
 
@@ -463,7 +480,7 @@ async function run() {
 
     // Contact Form
 
-    app.post("/contact", async (req, res) => {
+    app.post("/contact",contactLimiter, async (req, res) => {
       try {
         const newMessage = req.body;
         const result = await contact.insertOne(newMessage);
