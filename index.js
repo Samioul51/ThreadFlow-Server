@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+const app = express();
 import { MongoClient, ObjectId, ServerApiVersion } from 'mongodb';
 import Stripe from 'stripe';
 import rateLimit from 'express-rate-limit';
@@ -10,14 +11,12 @@ dotenv.config();
 
 // Firebase Admin
 
-const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-
-const app = express();
 
 const port = process.env.PORT || 3000;
 const stripe = new Stripe(process.env.stripe_secret_key);
@@ -25,9 +24,9 @@ const stripe = new Stripe(process.env.stripe_secret_key);
 
 // Middlewares
 
-app.set("trust proxy", 1);
-app.use(cors());
 app.use(express.json());
+app.use(cors());
+app.set("trust proxy", 1);
 
 // FB token middleware
 
@@ -75,7 +74,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // await client.connect();
     const db = client.db("ThreadFlow");
     const products = db.collection("products");
     const orders = db.collection("orders");
@@ -425,7 +423,6 @@ async function run() {
       }
     });
 
-
     // Delete Product
 
     app.delete("/products/:id", verifyFirebaseToken, verifyRole(["admin", "manager"]), async (req, res) => {
@@ -624,22 +621,20 @@ async function run() {
       }
     });
 
-
-    // await client.db("admin").command({ ping: 1 });
-    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
-    // await client.close();
+    
   }
 
 }
+
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-  res.send('Server running...')
+  res.send('ThreadFlow Server running...')
 })
 
-// app.listen(port, () => {
-//   console.log(`server running on ${port}`);
-// })
+app.listen(port, () => {
+  console.log(`server running on ${port}`);
+})
 
 
