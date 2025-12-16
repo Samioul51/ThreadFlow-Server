@@ -80,7 +80,7 @@ async function run() {
     const users = db.collection("users");
     const contact = db.collection("contactForm");
 
-    await users.createIndex({ email: 1 }, { unique: true });
+    // await users.createIndex({ email: 1 }, { unique: true });
 
     // Role verification middleware
 
