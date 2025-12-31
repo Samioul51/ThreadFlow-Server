@@ -49,6 +49,7 @@ password=your_mongodb_password
 
 # Stripe Secret Key
 stripe_secret_key=sk_test_your_stripe_key
+```
 
 ## 🔒 Security
 
