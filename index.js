@@ -287,11 +287,11 @@ async function run() {
       }
     });
 
-    // Homepage limit 6 products
+    // Homepage limit 8 products
 
     app.get("/products/home", async (req, res) => {
       try {
-        const homeProducts = await products.find({ showOnHome: true }).sort({ availableQuantity: -1 }).limit(6).toArray();
+        const homeProducts = await products.find({ showOnHome: true }).sort({ availableQuantity: -1 }).limit(8).toArray();
 
         res.send({
           success: true,
