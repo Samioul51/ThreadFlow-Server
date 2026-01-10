@@ -272,7 +272,7 @@ async function run() {
 
     app.get("/products", async (req, res) => {
       try {
-        const { limit = 0, skip = 0, category, search } = req.query;
+        const { limit = 0, skip = 0, category, search,sort } = req.query;
 
         const filter = {};
 
@@ -282,9 +282,17 @@ async function run() {
         if (search)
           filter.productName = { $regex: search, $options: "i" };
 
+        let sortOption={availableQuantity:-1};
+
+        if(sort==="price_asc")
+          sortOption={price:1};
+
+        if(sort==="price_desc")
+          sortOption={price:-1};
+
         const total = await products.countDocuments(filter);
 
-        const list = await products.find(filter).sort({ availableQuantity: -1 }).limit(Number(limit)).skip(Number(skip)).toArray();
+        const list = await products.find(filter).sort(sortOption).limit(Number(limit)).skip(Number(skip)).toArray();
         res.send({
           success: true,
           total,
