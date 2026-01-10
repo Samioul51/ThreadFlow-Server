@@ -224,6 +224,50 @@ async function run() {
       }
     });
 
+    // profile update
+
+    app.patch("/profile/:id",verifyFirebaseToken,verifyRole(["admin", "buyer", "manager"]),async(req,res)=>{
+      try{
+        const id = req.params.id;
+        const {name}=req.body;
+
+        if(!name)
+          return res.status(400).send({
+            success:false,
+            message:"name is required"
+          });
+
+        const updatedFields={name};
+
+        const result=await users.updateOne(
+          {
+            _id:new ObjectId(id)
+          },
+          {
+            $set:updatedFields
+          }
+        );
+
+        if(result.matchedCount===0)
+          return res.status(404).send({
+            success:false,
+            message:"No user found"
+          });
+
+        res.send({
+          success:true,
+          message:"Profile updated successfully!"
+        });
+
+      }
+      catch(error){
+        res.status(500).send({
+          success:false,
+          message:error.message
+        })
+      }
+    });
+
     // All products
 
     app.get("/products", async (req, res) => {
